@@ -1,6 +1,6 @@
-module helloworld
+module github.com/why444216978/grpc-cmux
 
-go 1.15
+go 1.16
 
 require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0

@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	pb "helloworld/helloworld"
-	"helloworld/server"
+	pb "github.com/why444216978/grpc-cmux/helloworld"
+	"github.com/why444216978/grpc-cmux/server"
 
 	"google.golang.org/grpc"
 )
