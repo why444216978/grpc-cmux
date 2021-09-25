@@ -27,17 +27,13 @@ func (s *Server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 	return &pb.HelloReply{Message: in.Name + " world"}, nil
 }
 
-func startHTTP(ctx context.Context, s *server.Server) {
-	if err := s.InitGateway(ctx); err != nil {
-		panic(err)
-	}
+func registerHTTP(ctx context.Context, s *server.Server) {
 	if err := pb.RegisterGreeterHandler(ctx, s.ServerMux, s.GRPCConn); err != nil {
 		panic(err)
 	}
-	s.StartGateway()
 }
 
-func startGRPC(ctx context.Context, s *server.Server) {
+func registerGRPC(ctx context.Context, s *server.Server) {
 	grpcServer := grpc.NewServer()
 	pb.RegisterGreeterServer(grpcServer, new(Server))
 	if err := grpcServer.Serve(s.GRPCListener); err != nil {
@@ -52,9 +48,11 @@ func main() {
 	}
 	defer conn.Close()
 
-	s := server.New(endpoint, conn,
-		server.WithGRPCStartFunc(startGRPC),
-		server.WithHTTPStartFunc(startHTTP))
+	s := server.New(
+		server.WithEndpoint(endpoint),
+		server.WithListener(conn),
+		server.WithGRPCregisterFunc(registerGRPC),
+		server.WithHTTPregisterFunc(registerHTTP))
 
 	var wg sync.WaitGroup
 	wg.Add(1)

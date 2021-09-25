@@ -21,31 +21,36 @@ type Server struct {
 	GRPCListener net.Listener
 	HTTPServer   *http.Server
 	GRPCConn     *grpc.ClientConn
-	startHTTP    startFunc
-	startGRPC    startFunc
+	registerHTTP registerFunc
+	registerGRPC registerFunc
 	ServerMux    *runtime.ServeMux
 	router       *http.ServeMux
 	tcpMux       cmux.CMux
 }
 
-type startFunc func(ctx context.Context, s *Server)
+type registerFunc func(ctx context.Context, s *Server)
 
 type Option func(*Server)
 
-func WithHTTPStartFunc(startHTTP startFunc) Option {
-	return func(s *Server) { s.startHTTP = startHTTP }
+func WithEndpoint(endpoint string) Option {
+	return func(s *Server) { s.endpoint = endpoint }
 }
 
-func WithGRPCStartFunc(startGRPC startFunc) Option {
-	return func(s *Server) { s.startGRPC = startGRPC }
+func WithListener(listener net.Listener) Option {
+	return func(s *Server) { s.listener = listener }
+}
+
+func WithHTTPregisterFunc(registerHTTP registerFunc) Option {
+	return func(s *Server) { s.registerHTTP = registerHTTP }
+}
+
+func WithGRPCregisterFunc(registerGRPC registerFunc) Option {
+	return func(s *Server) { s.registerGRPC = registerGRPC }
 }
 
 // New returns a Server instance
-func New(endpoint string, l net.Listener, opts ...Option) *Server {
-	s := &Server{
-		endpoint: endpoint,
-		listener: l,
-	}
+func New(opts ...Option) *Server {
+	s := &Server{}
 
 	for _, o := range opts {
 		o(s)
@@ -64,13 +69,26 @@ func (s *Server) Start() error {
 	s.GRPCListener = s.tcpMux.MatchWithWriters(cmux.HTTP2MatchHeaderFieldPrefixSendSettings("content-type", "application/grpc"))
 	s.HTTPListener = s.tcpMux.Match(cmux.HTTP1Fast())
 
-	go s.startGRPC(ctx, s)
-	go s.startHTTP(ctx, s)
+	go func() {
+		s.registerGRPC(ctx, s)
+	}()
+
+	go func() {
+		if err := s.initGateway(ctx); err != nil {
+			panic(err)
+		}
+		s.registerHTTP(ctx, s)
+		s.startGateway()
+	}()
 
 	return s.tcpMux.Serve()
 }
 
-func (s *Server) InitGateway(ctx context.Context) error {
+func (s *Server) Stop() {
+	s.tcpMux.Close()
+}
+
+func (s *Server) initGateway(ctx context.Context) error {
 	var err error
 
 	s.router = http.NewServeMux()
@@ -97,7 +115,7 @@ func (s *Server) InitGateway(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) StartGateway() {
+func (s *Server) startGateway() {
 	s.router.Handle("/", s.ServerMux)
 
 	s.HTTPServer = &http.Server{
@@ -111,8 +129,4 @@ func (s *Server) StartGateway() {
 	if err := s.HTTPServer.Serve(s.HTTPListener); err != nil {
 		panic(err)
 	}
-}
-
-func (s *Server) Stop() {
-	s.tcpMux.Close()
 }
