@@ -16,7 +16,6 @@ import (
 
 type Server struct {
 	endpoint      string
-	listener      net.Listener
 	HTTPListener  net.Listener
 	GRPCListener  net.Listener
 	httpServer    *http.Server
@@ -36,10 +35,6 @@ func WithEndpoint(endpoint string) Option {
 	return func(s *Server) { s.endpoint = endpoint }
 }
 
-func WithListener(listener net.Listener) Option {
-	return func(s *Server) { s.listener = listener }
-}
-
 func WithHTTPregisterFunc(registerHTTP registerFunc) Option {
 	return func(s *Server) { s.registerHTTP = registerHTTP }
 }
@@ -55,7 +50,12 @@ func New(opts ...Option) *Server {
 	for _, o := range opts {
 		o(s)
 	}
-	s.tcpMux = cmux.New(s.listener)
+
+	listener, err := net.Listen("tcp", s.endpoint)
+	if err != nil {
+		panic(err)
+	}
+	s.tcpMux = cmux.New(listener)
 
 	return s
 }

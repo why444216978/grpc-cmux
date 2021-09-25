@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
 	"sync"
 	"time"
 
@@ -42,15 +41,8 @@ func registerGRPC(ctx context.Context, s *server.Server) {
 }
 
 func main() {
-	conn, err := net.Listen("tcp", endpoint)
-	if err != nil {
-		panic(err)
-	}
-	defer conn.Close()
-
 	s := server.New(
 		server.WithEndpoint(endpoint),
-		server.WithListener(conn),
 		server.WithGRPCregisterFunc(registerGRPC),
 		server.WithHTTPregisterFunc(registerHTTP))
 
