@@ -61,20 +61,20 @@ func main() {
 		wg.Done()
 	}()
 
-	ticker := time.NewTicker(time.Second)
-	for range ticker.C {
-		client()
-	}
-
-	wg.Wait()
-}
-
-func client() {
 	cc, err := newClientConn(endpoint)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	ticker := time.NewTicker(time.Second)
+	for range ticker.C {
+		client(cc)
+	}
+
+	wg.Wait()
+}
+
+func client(cc *grpc.ClientConn) {
 	client := pb.NewGreeterClient(cc)
 
 	reply, err := client.SayHello(context.Background(), &pb.HelloRequest{Name: "why"})

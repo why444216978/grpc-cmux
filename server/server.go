@@ -55,6 +55,7 @@ func New(opts ...Option) *Server {
 	for _, o := range opts {
 		o(s)
 	}
+	s.tcpMux = cmux.New(s.listener)
 
 	return s
 }
@@ -63,8 +64,6 @@ func (s *Server) Start() error {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-
-	s.tcpMux = cmux.New(s.listener)
 
 	s.GRPCListener = s.tcpMux.MatchWithWriters(cmux.HTTP2MatchHeaderFieldPrefixSendSettings("content-type", "application/grpc"))
 	s.HTTPListener = s.tcpMux.Match(cmux.HTTP1Fast())
