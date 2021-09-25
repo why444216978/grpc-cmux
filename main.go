@@ -28,7 +28,7 @@ func (s *Server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 }
 
 func registerHTTP(ctx context.Context, s *server.Server) {
-	if err := pb.RegisterGreeterHandler(ctx, s.ServerMux, s.GRPCConn); err != nil {
+	if err := pb.RegisterGreeterHandler(ctx, s.ServerMux, s.GRPClientConn); err != nil {
 		panic(err)
 	}
 }

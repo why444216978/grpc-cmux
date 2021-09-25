@@ -15,17 +15,17 @@ import (
 )
 
 type Server struct {
-	endpoint     string
-	listener     net.Listener
-	HTTPListener net.Listener
-	GRPCListener net.Listener
-	HTTPServer   *http.Server
-	GRPCConn     *grpc.ClientConn
-	registerHTTP registerFunc
-	registerGRPC registerFunc
-	ServerMux    *runtime.ServeMux
-	router       *http.ServeMux
-	tcpMux       cmux.CMux
+	endpoint      string
+	listener      net.Listener
+	HTTPListener  net.Listener
+	GRPCListener  net.Listener
+	httpServer    *http.Server
+	router        *http.ServeMux
+	GRPClientConn *grpc.ClientConn
+	registerHTTP  registerFunc
+	registerGRPC  registerFunc
+	ServerMux     *runtime.ServeMux
+	tcpMux        cmux.CMux
 }
 
 type registerFunc func(ctx context.Context, s *Server)
@@ -93,7 +93,7 @@ func (s *Server) initGateway(ctx context.Context) error {
 
 	s.router = http.NewServeMux()
 
-	s.GRPCConn, err = grpc.Dial(s.endpoint, []grpc.DialOption{
+	s.GRPClientConn, err = grpc.Dial(s.endpoint, []grpc.DialOption{
 		grpc.WithTimeout(10 * time.Second),
 		grpc.WithBlock(),
 		grpc.WithInsecure(),
@@ -118,7 +118,7 @@ func (s *Server) initGateway(ctx context.Context) error {
 func (s *Server) startGateway() {
 	s.router.Handle("/", s.ServerMux)
 
-	s.HTTPServer = &http.Server{
+	s.httpServer = &http.Server{
 		Addr:         s.endpoint,
 		Handler:      s.router,
 		ReadTimeout:  time.Second,
@@ -126,7 +126,7 @@ func (s *Server) startGateway() {
 		IdleTimeout:  time.Second,
 	}
 
-	if err := s.HTTPServer.Serve(s.HTTPListener); err != nil {
+	if err := s.httpServer.Serve(s.HTTPListener); err != nil {
 		panic(err)
 	}
 }
