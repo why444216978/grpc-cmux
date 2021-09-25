@@ -25,6 +25,7 @@ type Server struct {
 	startGRPC    startFunc
 	ServerMux    *runtime.ServeMux
 	router       *http.ServeMux
+	tcpMux       cmux.CMux
 }
 
 type startFunc func(ctx context.Context, s *Server)
@@ -58,15 +59,15 @@ func (s *Server) Start() error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	tcpMux := cmux.New(s.listener)
+	s.tcpMux = cmux.New(s.listener)
 
-	s.GRPCListener = tcpMux.MatchWithWriters(cmux.HTTP2MatchHeaderFieldPrefixSendSettings("content-type", "application/grpc"))
-	s.HTTPListener = tcpMux.Match(cmux.HTTP1Fast())
+	s.GRPCListener = s.tcpMux.MatchWithWriters(cmux.HTTP2MatchHeaderFieldPrefixSendSettings("content-type", "application/grpc"))
+	s.HTTPListener = s.tcpMux.Match(cmux.HTTP1Fast())
 
 	go s.startGRPC(ctx, s)
 	go s.startHTTP(ctx, s)
 
-	return tcpMux.Serve()
+	return s.tcpMux.Serve()
 }
 
 func (s *Server) InitGateway(ctx context.Context) error {
@@ -110,4 +111,8 @@ func (s *Server) StartGateway() {
 	if err := s.HTTPServer.Serve(s.HTTPListener); err != nil {
 		panic(err)
 	}
+}
+
+func (s *Server) Stop() {
+	s.tcpMux.Close()
 }
